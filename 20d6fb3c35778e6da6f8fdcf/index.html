@@ -1,0 +1,89 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>Paper Trader</title><style>
+body{font-family:system-ui,sans-serif;margin:0;background:#0f1115;color:#e6e6e6}main{max-width:960px;margin:auto;padding:12px}
+h1{font-size:18px;margin:4px 0}h2{font-size:15px;margin:18px 0 6px;color:#9aa4b2}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.card{background:#181b22;border-radius:10px;padding:10px}.card b{display:block;font-size:20px;margin-top:4px}.muted{color:#8a93a0;font-size:12px}
+.g{color:#3fb950}.r{color:#f85149}.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px;border-bottom:1px solid #262a33;text-align:left;white-space:nowrap}td.reason{white-space:normal}
+.bar{height:8px;background:#262a33;border-radius:4px;margin-top:6px}.bar div{height:8px;border-radius:4px;background:#d29922}
+.pcard{background:#181b22;border-radius:10px;padding:10px;margin-bottom:12px}.pcard p{margin:0 0 8px;font-size:14px;line-height:1.4}
+.chart{height:65vh;min-height:360px;position:relative}.tb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.tb select,.tb button{background:#21262d;color:#e6e6e6;border:1px solid #30363d;border-radius:6px;padding:6px 10px;font-size:13px}.tb button.on{background:#1f6feb;border-color:#1f6feb}
+.ohlc{position:absolute;top:6px;left:8px;z-index:3;font-size:12px;pointer-events:none;color:#c9d1d9}.ohlc .lg{display:block;margin-top:2px}
+.wi{cursor:pointer}main{max-width:1400px}.prog{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,#f85149,#d29922,#3fb950);margin:4px 0 2px}
+.prog i{position:absolute;top:-4px;width:4px;height:18px;background:#fff;border-radius:2px}.pl{display:flex;justify-content:space-between;font-size:11px;color:#8a93a0}
+.wl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.wi{background:#181b22;border-radius:10px;padding:8px;font-size:13px}.wi svg{width:100%;height:30px}
+.badge{font-size:11px;padding:1px 6px;border-radius:8px;background:#30363d}</style></head><body><main>
+<h1>Alpaca Paper Account <span class="badge">PAPER · read-only snapshot</span></h1><div class="muted" id="upd">loading…</div>
+<div class="cards"><div class="card">Equity<b id="eq">–</b></div><div class="card">Today P&amp;L<b id="pl">–</b></div>
+<div class="card">Open risk<b id="rk">–</b><div class="bar"><div id="rb" style="width:0"></div></div></div></div>
+<h2>Chart</h2><div class="tb"><select id="sym"></select><span id="tfs"></span><span class="muted" id="cst"></span></div>
+<div class="pcard"><div id="info"></div><div class="chart" id="main"><div class="ohlc" id="ohlc"></div></div></div>
+<h2>Open positions</h2><div class="wrap"><table id="pos"></table></div>
+<h2>Watchlist <span class=muted>(green = above 50-day average = uptrend)</span></h2><div class="wl" id="wl"></div>
+<h2>Last 10 fills (Colombo time)</h2><div class="wrap"><table id="fil"></table></div>
+<h2>Latest decisions</h2><div class="wrap"><table id="dec"></table></div></main><script src="lw.js"></script><script>
+let WATCH=[];
+const NC=()=>'?t='+Date.now();const f=(n,d=2)=>n==null?'–':Number(n).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));const cl=n=>n>=0?'g':'r';
+function tbl(id,h,rows){document.getElementById(id).innerHTML='<tr>'+h.map(x=>'<th>'+x+'</th>').join('')+'</tr>'+(rows.length?rows.join(''):'<tr><td class=muted colspan='+h.length+'>none</td></tr>')}
+async function load(){try{const d=await (await fetch('data/summary.json'+NC(),{cache:'no-store'})).json();WATCH=d.watch||[];if(d.error)throw d.error;
+eq.textContent='$'+f(d.equity);pl.innerHTML=`<span class="${cl(d.day_pl)}">${d.day_pl>=0?'+':''}$${f(d.day_pl)} (${f(d.day_pct)}%)</span>`;
+rk.textContent=f(d.risk_pct)+'% of '+f(d.cap_pct,0)+'%';rb.style.width=Math.min(100,d.risk_pct/d.cap_pct*100)+'%';
+tbl('pos',['Symbol','Qty','Entry','Price','uP&L','Stop','Risk $'],d.positions.map(p=>`<tr><td>${e(p.symbol)}</td><td>${e(p.qty)}</td><td>${f(p.entry)}</td><td>${f(p.price)}</td><td class="${cl(p.upl)}">${f(p.upl)}</td><td>${f(p.stop)}${p.monitored?' <span class=badge>monitored</span>':''}</td><td>${f(p.risk,0)}</td></tr>`));
+tbl('fil',['Time','Symbol','Side','Qty','Price'],d.fills.map(x=>`<tr><td>${e(x.t)}</td><td>${e(x.symbol)}</td><td class="${x.side=='buy'?'g':'r'}">${e(x.side)}</td><td>${e(x.qty)}</td><td>${f(x.price)}</td></tr>`));
+tbl('dec',['Time','Event','Symbol','Reason'],d.decisions.map(x=>`<tr><td>${e(x.t)}</td><td>${e(x.event)}</td><td>${e(x.symbol)}</td><td class=reason>${e(x.reason)}</td></tr>`));
+drawCharts(d.positions);upd.textContent=(d.mode=='active'?'⚡ Active mode until '+d.active_until+' (Colombo) · ':'')+'Last updated '+d.updated+' (Colombo) · snapshot, re-checks every 60s'}catch(err){upd.textContent='Error: '+err}}
+
+const $=n=>'$'+f(n);let POS=[],SEL=null,TFR='15m',CH,CS,VS,S20,S50,lines=[],lastBars=[],userPicked=false;
+function card(p){const pnl=p.upl,s=p.stop,t=p.tp,now=p.price;let txt=`<b>${e(p.symbol.replace('/USD',''))}</b>: bought at ${$(p.entry)}, now ${$(now)} (<span class="${cl(pnl)}">${pnl>=0?'+':'-'}$${f(Math.abs(pnl),0)}</span>).`;
+ if(s)txt+=` Stop ${$(s)} (${f((now-s)/now*100,1)}% away)`;if(t)txt+=`, target ${$(t)} (${f((t-now)/now*100,1)}% away)`;
+ let bar='';if(s&&t){const pos=Math.max(0,Math.min(100,(now-s)/(t-s)*100));bar=`<div class=prog><i style="left:calc(${pos}% - 2px)"></i></div><div class=pl><span>Stop ${$(s)}</span><span>Entry ${$(p.entry)}</span><span>Target ${$(t)}</span></div>`}
+ return '<p>'+txt+'</p>'+bar}
+const ALL=["SPY", "QQQ", "IWM", "DIA", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AMD", "BTC/USD", "ETH/USD", "SOL/USD", "XRP/USD"];let LV=[];const OFF=19800;const p2=n=>String(n).padStart(2,'0');
+const cmb=t=>new Date((t+OFF)*1000);const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtFull=t=>{const d=cmb(t);return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`};
+const fmtTick=(t,type)=>{const d=cmb(t);if(type===0)return String(d.getUTCFullYear());if(type===1)return MON[d.getUTCMonth()];if(type===2)return String(d.getUTCDate());return p2(d.getUTCHours())+':'+p2(d.getUTCMinutes())};
+function initChart(){const el=document.getElementById('main');
+ CH=LightweightCharts.createChart(el,{autoSize:true,layout:{background:{color:'#181b22'},textColor:'#c9d1d9'},grid:{vertLines:{color:'#232832'},horzLines:{color:'#232832'}},
+  localization:{timeFormatter:fmtFull},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#30363d',tickMarkFormatter:fmtTick},rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.08,bottom:0.25}}});
+ CS=CH.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false,autoscaleInfoProvider:orig=>{const r=orig();if(!r||!LV.length)return r;return{priceRange:{minValue:Math.min(r.priceRange.minValue,...LV),maxValue:Math.max(r.priceRange.maxValue,...LV)},margins:r.margins}}});
+ VS=CH.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});
+ CH.priceScale('vol').applyOptions({scaleMargins:{top:0.8,bottom:0}});
+ S20=CH.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+ S50=CH.addLineSeries({color:'#a371f7',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+ CH.subscribeCrosshairMove(p=>ohlc(p&&p.time?p.seriesData.get(CS):null,p&&p.time?p.seriesData.get(S20):null,p&&p.time?p.seriesData.get(S50):null));
+ document.getElementById('tfs').innerHTML=["5m", "15m", "1H", "4H", "1D"].map(t=>`<button data-tf="${t}" class="${t==TFR?'on':''}">${t}</button>`).join(' ');
+ document.getElementById('tfs').onclick=ev=>{const t=ev.target.dataset.tf;if(!t)return;TFR=t;document.querySelectorAll('#tfs button').forEach(b=>b.classList.toggle('on',b.dataset.tf==t));loadChart(true)};
+ document.getElementById('sym').onchange=ev=>{userPicked=true;select(ev.target.value)}}
+function ohlc(b,a,c2){if(!b){const L=lastBars[lastBars.length-1];if(!L){ohlcEl.innerHTML='';return}b=L;a={value:L.s20};c2={value:L.s50}}
+ const ch=b.close-b.open,col=ch>=0?'#3fb950':'#f85149';
+ ohlcEl.innerHTML=`<b>${e(SEL||'')}</b> · ${TFR} · ${b.time?fmtFull(b.time):''} &nbsp;O <span style="color:${col}">${f(b.open)}</span> H <span style="color:${col}">${f(b.high)}</span> L <span style="color:${col}">${f(b.low)}</span> C <span style="color:${col}">${f(b.close)}</span> <span style="color:${col}">${ch>=0?'+':''}${f(ch/b.open*100)}%</span>`+
+ `<span class=lg><span style="color:#d29922">SMA20 ${a&&a.value?f(a.value):'–'}</span> &nbsp;<span style="color:#a371f7">SMA50 ${c2&&c2.value?f(c2.value):'–'}</span></span>`}
+const ohlcEl=document.getElementById('ohlc');
+function sma(b,n){const o=[];let s=0;for(let i=0;i<b.length;i++){s+=b[i].close;if(i>=n)s-=b[i-n].close;if(i>=n-1)o.push({time:b[i].time,value:s/n})}return o}
+function fillSel(){const held=POS.map(p=>p.symbol);const opts=[...held.map(s=>[s,'● '+s]),...ALL.filter(s=>!held.includes(s)).map(s=>[s,s])];
+ const el=document.getElementById('sym');const cur=opts.map(o=>o[0]+o[1]).join();if(el.dataset.k!==cur){el.innerHTML=opts.map(([v,t])=>`<option value="${e(v)}">${e(t)}</option>`).join('');el.dataset.k=cur}
+ if(!SEL||(!userPicked&&held.length&&SEL!==held[0]))SEL=held[0]||ALL[0];el.value=SEL}
+function select(s){SEL=s;document.getElementById('sym').value=s;renderInfo();loadChart(true)}
+function renderInfo(){const p=POS.find(x=>x.symbol==SEL);document.getElementById('info').innerHTML=p?card(p):`<p><b>${e(SEL)}</b>: no open position.</p>`}
+let LC=0;
+async function loadChart(force){if(!CH)initChart();if(!force&&Date.now()-LC<29000)return;LC=Date.now();const sym=SEL,tf=TFR;cst.textContent='loading…';
+ try{const r=await fetch('data/bars/'+sym.replace('/','-')+'_'+tf+'.json'+NC(),{cache:'no-store'});const b=await r.json();if(b.error)throw b.error;
+  if(sym!==SEL||tf!==TFR)return;const bars=b.bars;const s20=sma(bars,20),s50=sma(bars,50);const m20=new Map(s20.map(x=>[x.time,x.value])),m50=new Map(s50.map(x=>[x.time,x.value]));
+  lastBars=bars.map(x=>({...x,s20:m20.get(x.time),s50:m50.get(x.time)}));
+  CS.setData(bars);VS.setData(bars.map(x=>({time:x.time,value:x.volume,color:x.close>=x.open?'rgba(63,185,80,.45)':'rgba(248,81,73,.45)'})));S20.setData(s20);S50.setData(s50);
+  lines.forEach(l=>CS.removePriceLine(l));lines=[];LV=[];const p=POS.find(x=>x.symbol==sym);
+  const L=(v,c,t)=>{if(v)LV.push(v);if(v)lines.push(CS.createPriceLine({price:v,color:c,lineWidth:2,lineStyle:2,axisLabelVisible:true,title:t}))};
+  let mk=[];if(p){L(b.entry||p.entry,'#58a6ff','Entry');L(p.stop||b.stop,'#f85149','Stop');L(b.tp||p.tp,'#3fb950','Target');
+   if(b.entry_time&&bars.length&&b.entry_time>=bars[0].time){let tt=bars[0].time;for(const x of bars)if(x.time<=b.entry_time)tt=x.time;mk=[{time:tt,position:'belowBar',color:'#58a6ff',shape:'arrowUp',text:'Buy '+$(b.entry)}]}}
+  CS.setMarkers(mk);if(force)CH.timeScale().fitContent();ohlc(null);cst.textContent='updated '+new Date().toLocaleTimeString()+' · auto 30s'}
+ catch(err){cst.textContent='chart error: '+err}}
+function drawCharts(pos){POS=pos;fillSel();renderInfo();loadChart(false)}
+function spark(a,up){const mn=Math.min(...a),mx=Math.max(...a),w=100,h=30;const pts=a.map((v,i)=>(i/(a.length-1)*w).toFixed(1)+','+(h-(v-mn)/(mx-mn||1)*h).toFixed(1)).join(' ');
+ return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="${up?'#3fb950':'#f85149'}" stroke-width="1.5" points="${pts}"/></svg>`}
+async function loadWatch(){try{const w=WATCH;
+ document.getElementById('wl').innerHTML=w.map(x=>x.error?`<div class=wi>${e(x.symbol)}<br><span class=muted>n/a</span></div>`:
+ `<div class=wi data-s="${e(x.symbol)}"><b>${e(x.symbol)}</b> ${$(x.price)} <span class="${cl(x.chg)}">${x.chg>=0?'+':''}${f(x.chg,1)}%</span><br><span class="${x.above?'g':'r'}">${x.above?'▲ above':'▼ below'} 50-day avg</span>${spark(x.spark,x.above)}</div>`).join('')}catch(err){}}
+document.getElementById('wl').onclick=ev=>{const t=ev.target.closest('.wi');if(t&&t.dataset.s){userPicked=true;select(t.dataset.s);document.getElementById('sym').scrollIntoView({behavior:'smooth'})}};
+load();setInterval(()=>{load();LC=0},60000);setTimeout(loadWatch,1500);setInterval(loadWatch,60000);</script></body></html>
