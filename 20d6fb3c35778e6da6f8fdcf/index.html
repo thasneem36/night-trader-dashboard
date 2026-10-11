@@ -53,7 +53,7 @@ function initChart(){const el=document.getElementById('main');
  S20=CH.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
  S50=CH.addLineSeries({color:'#a371f7',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
  CH.subscribeCrosshairMove(p=>ohlc(p&&p.time?p.seriesData.get(CS):null,p&&p.time?p.seriesData.get(S20):null,p&&p.time?p.seriesData.get(S50):null));
- document.getElementById('tfs').innerHTML=["5m", "15m", "1H", "4H", "1D"].map(t=>`<button data-tf="${t}" class="${t==TFR?'on':''}">${t}</button>`).join(' ');
+ document.getElementById('tfs').innerHTML=["15m", "1H", "1D"].map(t=>`<button data-tf="${t}" class="${t==TFR?'on':''}">${t}</button>`).join(' ');
  document.getElementById('tfs').onclick=ev=>{const t=ev.target.dataset.tf;if(!t)return;TFR=t;document.querySelectorAll('#tfs button').forEach(b=>b.classList.toggle('on',b.dataset.tf==t));loadChart(true)};
  document.getElementById('sym').onchange=ev=>{userPicked=true;select(ev.target.value)}}
 function ohlc(b,a,c2){if(!b){const L=lastBars[lastBars.length-1];if(!L){ohlcEl.innerHTML='';return}b=L;a={value:L.s20};c2={value:L.s50}}
