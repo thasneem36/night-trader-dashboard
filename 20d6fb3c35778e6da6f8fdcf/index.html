@@ -77,7 +77,7 @@ async function loadChart(force){if(!CH)initChart();if(!force&&Date.now()-LC<2900
   const L=(v,c,t)=>{if(v)LV.push(v);if(v)lines.push(CS.createPriceLine({price:v,color:c,lineWidth:2,lineStyle:2,axisLabelVisible:true,title:t}))};
   let mk=[];if(p){L(b.entry||p.entry,'#58a6ff','Entry');L(p.stop||b.stop,'#f85149','Stop');L(b.tp||p.tp,'#3fb950','Target');
    if(b.entry_time&&bars.length&&b.entry_time>=bars[0].time){let tt=bars[0].time;for(const x of bars)if(x.time<=b.entry_time)tt=x.time;mk=[{time:tt,position:'belowBar',color:'#58a6ff',shape:'arrowUp',text:'Buy '+$(b.entry)}]}}
-  CS.setMarkers(mk);if(force)CH.timeScale().fitContent();ohlc(null);cst.textContent='updated '+new Date().toLocaleTimeString()+' · auto 30s'}
+  CS.setMarkers(mk);if(force)CH.timeScale().fitContent();ohlc(null);cst.textContent='updated '+new Date().toLocaleTimeString()+' · re-checks 60s'}
  catch(err){cst.textContent='chart error: '+err}}
 function drawCharts(pos){POS=pos;fillSel();renderInfo();loadChart(false)}
 function spark(a,up){const mn=Math.min(...a),mx=Math.max(...a),w=100,h=30;const pts=a.map((v,i)=>(i/(a.length-1)*w).toFixed(1)+','+(h-(v-mn)/(mx-mn||1)*h).toFixed(1)).join(' ');
